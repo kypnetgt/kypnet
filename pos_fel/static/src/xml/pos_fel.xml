@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+	
+	<t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+		
+		<xpath expr="//*[@class='pos-receipt']" position="attributes">
+			<attribute name="t-att-style">
+				'position: relative; left: 1.2em; font-size: 150%; zoom: 90%;'
+			</attribute>
+		</xpath>
+
+		<xpath expr="//*[@class='pos-receipt-contact']" position="replace">
+			<div  class="pos-receipt-contact" style="text-align:center;font-size: 15px;
+				margin-top: -20px;">
+				<div t-if="env.pos.invoice_journal_address" >
+					<span t-esc="env.pos.invoice_journal_address.name"/>
+				</div>
+				<div t-if='!props.isBill' style="text-align:center;">
+					<t t-if='receipt.company.vat'>
+						<div><t t-esc='receipt.company.vat_label'/>  :  <t t-esc='receipt.company.vat' /></div>
+					</t>
+				</div>
+				<div t-if="env.pos.invoice_journal_address">
+					<span t-esc="env.pos.invoice_journal_address.street"/>
+					<br/>
+					<t t-if="env.pos.invoice_journal_address.street2">
+						<span  t-esc="env.pos.invoice_journal_address.street2"/>
+						<br/>
+					</t>
+					<t t-if="env.pos.invoice_journal_address.city">
+						<span  t-esc="env.pos.invoice_journal_address.city"/>
+					</t>
+					<t t-if="env.pos.invoice_journal_address.zip">
+						- <span  t-esc="env.pos.invoice_journal_address.zip"/>
+					</t>
+					<br/>
+					<t t-if="env.pos.invoice_journal_address.state_id">
+						<span t-esc="env.pos.invoice_journal_address.state_id[1]"/>,
+					</t>
+					<t t-if="env.pos.invoice_journal_address.country_id">
+						<span t-esc="env.pos.invoice_journal_address.country_id[1]"/>
+						<br/>
+					</t>
+				</div>
+				<t t-if="env.pos.invoice_journal_address.phone">
+					<span style="font-weight: bold;">Telefono:   </span><span style="font-weight: bold;" t-esc="env.pos.invoice_journal_address.phone"/>
+				</t><br/>
+				<t t-if="env.pos.invoice_journal_address.email" style="text-align:center;font-size: 15px;">
+					<span t-esc="env.pos.invoice_journal_address.email"/>
+				</t> 
+
+				
+
+				<t t-if="state.fel_gt.firma_fel ">
+					<div>
+						NIT:<t t-esc="env.pos.invoice_journal_address.vat || ''"/><br/>
+						Factura Electrónica<br/>
+						Serie:  <t t-esc="state.fel_gt.serie_fel || ''"/><br/>
+						No:  <t t-esc="state.fel_gt.numero_fel || ''"/><br/>
+						Numbro de autorizacion: <t t-esc="state.fel_gt.firma_fel || ''"/> 
+					</div>
+				</t>
+				
+				<div class="datos_factura" t-if="receipt.client" style="text-align: left;border-bottom: 1px solid black;border-top: 1px solid black;padding: 10px 0px;margin-top: 5px;">
+					Fecha: <t t-esc="receipt.date.localestring"/><br/>
+					NIT:  <t t-esc="receipt.client.vat ? receipt.client.vat : 'CF'"/><br/>
+					Nombre:  <t t-esc="receipt.client.name"/><br/>
+					Dirección:  <t t-esc="receipt.client.street ? receipt.client.street : ''"/>
+				</div>
+							
+			</div>
+		</xpath>
+
+		<xpath expr="//div[hasclass('orderlines')]" position="replace">
+			<table class='orderlines' style="width:100%;font-size: 13px; text-align: center;    margin-top: -25px;">
+				<colgroup>
+					<col width='20%' />
+					<col width='35%' />
+					<col width='20%' />
+					<col width='25%' />
+				</colgroup>
+				<tbody>
+					<tr>
+						<th style="text-align: left;">CANT</th>
+						<th style="text-align: left;">DESCRIPTION</th>
+						<th style="text-align: left;">P. UNIT</th>
+						<th style="text-align: right;">PRECIO T.</th>
+					</tr>
+
+					<tr t-foreach="orderlines" t-as="line">
+						<td style="text-align: left;">
+							<t t-esc="line.get_2d_quantity()" />
+						</td>
+						<td style="text-align: left;">
+							<t t-esc="line.get_product().display_name" />
+							<t t-if="line.get_discount() > 0">
+								<div class="pos-disc-font">
+									With a
+									<t t-esc="line.get_discount()" />
+									% discount
+								</div>
+							</t>
+							<t t-if="line.is_pack">
+								<t t-if="line.combo_products">
+								<div class="pos-disc-font">
+									<t t-foreach="line.combo_products" t-as="products">
+										<t t-if="products != null">
+											-<t t-esc='products.display_name' /> <br/>
+										</t>
+									</t>
+								</div>
+								</t>
+							</t>
+						</td>
+						<td style="text-align: left;">
+							<t t-esc="env.pos.format_currency(line.get_unit_display_price())" />
+						</td>
+						<td style="text-align: right;">
+							<t t-esc="env.pos.format_currency(line.get_display_price())" />
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</xpath>
+
+		<xpath expr="//div[hasclass('pos-receipt-amount')]" position="replace">
+			<table class='receipt-total' style="margin-left: auto; width: 100%;text-align: right;">
+				<tr>
+					<td style="width: 65%;">Sub-total:</td>
+					<td class="pos-right-align">
+						<t t-esc="env.pos.format_currency(receipt.total_with_tax)" />
+					</td>
+				</tr>
+				<tr>
+					<td>(-)Descuentos:</td>
+					<td class="pos-right-align">
+						<t t-esc="env.pos.format_currency((receipt.change)/10)" />
+					</td>
+				</tr>
+				<tr>
+					<td>Total:</td>
+					<td class="pos-right-align">
+						<t t-esc="env.pos.format_currency(receipt.total_with_tax + ((receipt.total_with_tax)/10))" />
+					</td>
+				</tr>
+			</table>
+		</xpath>
+
+		<xpath expr="//div[hasclass('receipt-change')]" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//t[@t-foreach='receipt.paymentlines']" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//t[@t-if='receipt.total_discount']" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//t[@t-if='isTaxIncluded']" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//t[@t-if='!isTaxIncluded']" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//div[hasclass('pos-receipt-center-align')]" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//div[hasclass('before-footer')]" position="before">
+			<div style="margin-top: -45px;">
+				<span style="font-size:12px;">DOSCIENTOS NOVENTA Y NUEVE QUETZALES EXACTOS</span>
+				<t t-if="receipt.header_html">
+					<t t-raw="receipt.header_html" />
+				</t>
+				<t t-if="!receipt.header_html and receipt.header">
+					<div><t t-esc="receipt.header" /></div>
+				</t>
+			</div>
+			
+		</xpath>
+
+		<xpath expr="//div[hasclass('after-footer')]" position="replace">
+			<span></span>
+		</xpath>
+
+		<xpath expr="//div[hasclass('pos-receipt-order-data')]" position="replace">
+		</xpath>
+		
+		
+	</t>
+
+</templates>
