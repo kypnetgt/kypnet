@@ -19,7 +19,7 @@ class ReporteCompras(models.AbstractModel):
 
         journal_ids = [x for x in datos['diarios_id']]
         filtro = [
-            ('state','in',['posted','cancel']),
+            ('state','in',['posted']),
             ('journal_id','in',journal_ids),
             ('date','<=',datos['fecha_hasta']),
             ('date','>=',datos['fecha_desde']),
@@ -53,12 +53,18 @@ class ReporteCompras(models.AbstractModel):
                 tipo = 'ND'
             if f.partner_id.pequenio_contribuyente:
                 tipo += ' PEQ'
+           
+            numero = f.ref or ''
+            
+            # Por si usa factura electrónica
+            if 'firma_fel' in f.fields_get() and f.firma_fel:
+                numero = str(f.serie_fel) + '-' + str(f.numero_fel)
 
             linea = {
                 'estado': f.state,
                 'tipo': tipo,
-                'fecha': f.date,
-                'numero': f.ref or '',
+                'fecha': f.invoice_date,
+                'numero': numero,
                 'proveedor': f.partner_id,
                 'compra': 0,
                 'compra_exento': 0,
@@ -105,6 +111,7 @@ class ReporteCompras(models.AbstractModel):
                         elif i['amount'] > 0:
                             linea[tipo_linea+'_exento'] += i['amount']
                             totales[tipo_linea]['exento'] += i['amount']
+                            totales[tipo_linea]['total'] += i['amount']
                 else:
                     linea[tipo_linea+'_exento'] += r['total_excluded']
                     totales[tipo_linea]['exento'] += r['total_excluded']
@@ -133,7 +140,7 @@ class ReporteCompras(models.AbstractModel):
             'data': data['form'],
             'docs': docs,
             'lineas': self.lineas,
-            'direccion': diario.direccion and diario.direccion.street,
+            'direccion_diario': diario.direccion,
             'current_company_id': self.env.company,
         }
 

@@ -30,6 +30,7 @@ class ReporteVentas(models.AbstractModel):
             filtro.append(('move_type','in',['out_invoice','out_refund']))
 
         facturas = self.env['account.move'].search(filtro)
+        impuesto = self.env['account.tax'].browse(datos['impuesto_id'][0])
 
         lineas = []
         for f in facturas:
@@ -37,12 +38,20 @@ class ReporteVentas(models.AbstractModel):
 
             tipo_cambio = 1
             if f.currency_id.id != f.company_id.currency_id.id:
-                total = 0
-                for l in f.line_ids:
-                    if l.account_id.reconcile:
-                        total += l.debit - l.credit
-                if f.amount_total != 0:
-                    tipo_cambio = abs(total / f.amount_total)
+                # Probar con impuesto inicialmente
+                for l in f.invoice_line_ids:
+                    if impuesto in l.tax_ids:
+                        if l.amount_currency != 0:
+                            tipo_cambio = l.balance/l.amount_currency
+                
+                # Si la factura no tiene impuesto, entonces usar cuenta por cobrar/pagar
+                if tipo_cambio == 1:
+                    total = 0
+                    for l in f.line_ids:
+                        if l.account_id.reconcile:
+                            total += l.debit - l.credit
+                    if f.amount_total != 0:
+                        tipo_cambio = abs(total / f.amount_total)
 
             tipo = 'FACT'
             tipo_interno_factura = f.type if 'type' in f.fields_get() else f.move_type
@@ -61,7 +70,7 @@ class ReporteVentas(models.AbstractModel):
             if 'firma_gface' in f.fields_get() and f.firma_gface:
                 numero = str(f.ref)
             if 'firma_fel' in f.fields_get() and f.firma_fel:
-                numero =str(f.name)+ '-' + str(f.serie_fel) + '-' + str(f.numero_fel)
+                numero = str(f.serie_fel) + '-' + str(f.numero_fel)
 
             # Por si usa tickets
             if 'requiere_resolucion' in f.journal_id.fields_get() and f.journal_id.requiere_resolucion:
@@ -88,7 +97,6 @@ class ReporteVentas(models.AbstractModel):
             }
 
             if f.state == 'cancel':
-                linea['numero'] = f.name
                 lineas.append(linea)
                 continue
 
@@ -119,6 +127,7 @@ class ReporteVentas(models.AbstractModel):
                         elif i['amount'] > 0:
                             linea[tipo_linea+'_exento'] += i['amount']
                             totales[tipo_linea]['exento'] += i['amount']
+                            totales[tipo_linea]['total'] += i['amount']
                 else:
                     linea[tipo_linea+'_exento'] += r['total_excluded']
                     totales[tipo_linea]['exento'] += r['total_excluded']
@@ -177,7 +186,7 @@ class ReporteVentas(models.AbstractModel):
             'data': data['form'],
             'docs': docs,
             'lineas': self.lineas,
-            'direccion_diario': diario.direccion and diario.direccion.street,
+            'direccion_diario': diario.direccion,
             'current_company_id': self.env.company,
         }
 

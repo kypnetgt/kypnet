@@ -2,6 +2,8 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
+from odoo.addons.l10n_gt_extra import a_letras
+
 import datetime
 import logging
 
@@ -86,6 +88,9 @@ class AccountPayment(models.Model):
     anulado = fields.Boolean('Anulado')
     fecha_anulacion = fields.Date('Fecha anulación')
 
+    def a_letras(self, monto):
+        return a_letras.num_a_letras(monto)
+    
     def cancel(self):
         for rec in self:
             rec.write({'numero_viejo': rec.name})
@@ -93,14 +98,20 @@ class AccountPayment(models.Model):
 
     def anular(self):
         for rec in self:
-            for move in rec.move_line_ids.mapped('move_id'):
-                move.button_cancel()
+            move = self.env['account.move']
+            
+            if 'move_line_ids' in rec.fields_get():
+                move += rec.move_line_ids.mapped('move_id')
+            else:
+                move += rec.move_id
+            
+            move.button_cancel()
 
-            rec.move_line_ids.remove_move_reconcile()
-            rec.move_line_ids.write({ 'debit': 0, 'credit': 0, 'amount_currency': 0 })
+            move.line_ids.remove_move_reconcile()
+            move.line_ids.write({ 'debit': 0, 'credit': 0, 'amount_currency': 0 })
+            
+            move.post()
 
-            for move in rec.move_line_ids.mapped('move_id'):
-                move.post()
             rec.anulado = True
             rec.fecha_anulacion = datetime.datetime.strftime(datetime.datetime.now(),'%Y-%m-%d')
 
